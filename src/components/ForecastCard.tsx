@@ -31,7 +31,7 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
         <div>
           <dt className="inline text-white/70">Chuva: </dt>
           <dd className="inline">
-            {precipitation === null || !Number.isFinite(precipitation)
+            {precipitation == null || !Number.isFinite(precipitation)
               ? 'Indisponível'
               : `${precipitation}%`}
           </dd>

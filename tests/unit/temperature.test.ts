@@ -40,6 +40,7 @@ describe('formatTemperature', () => {
 
   it('returns an unavailable label for null or non-finite values', () => {
     expect(formatTemperature(null, 'celsius')).toBe('Indisponível');
+    expect(formatTemperature(undefined, 'celsius')).toBe('Indisponível');
     expect(formatTemperature(Number.NaN, 'fahrenheit')).toBe('Indisponível');
   });
 });

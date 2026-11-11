@@ -166,15 +166,76 @@ describe('getWeather', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it.each([
-    { daily: payload.daily },
-    { current: payload.current },
-    null,
-  ])('rejects incomplete responses', async (data) => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => data }));
+  it('keeps available sections when current or daily data is absent', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ timezone: null, daily: payload.daily }),
+      }),
+    );
+    const withoutCurrent = await getWeather(city);
+    expect(withoutCurrent.current).toBeNull();
+    expect(withoutCurrent.forecast?.days).toHaveLength(5);
+    expect(withoutCurrent.city.timezone).toBeUndefined();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ current: payload.current }),
+      }),
+    );
+    const withoutDaily = await getWeather(city);
+    expect(withoutDaily.current?.temperatureC).toBe(21.4);
+    expect(withoutDaily.forecast).toBeNull();
+  });
+
+  it('rejects a response that is not an object', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => null }));
     await expect(getWeather(city)).rejects.toMatchObject({
       name: 'WeatherServiceError',
       kind: 'invalid-response',
+    });
+  });
+
+  it('maps absent and null current and daily fields to unavailable values', async () => {
+    const partialPayload = {
+      current: { temperature_2m: null, time: null },
+      daily: { time: [payload.daily.time[0], null, payload.daily.time[1]], weather_code: [null] },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => partialPayload }),
+    );
+
+    await expect(getWeather(city)).resolves.toMatchObject({
+      city: { timezone: undefined },
+      current: {
+        temperatureC: null,
+        feelsLikeC: null,
+        humidityPercent: null,
+        windSpeedKmh: null,
+        observedAt: null,
+        conditionCode: null,
+      },
+      forecast: {
+        isIncomplete: true,
+        days: [
+          {
+            conditionCode: null,
+            minimumC: null,
+            maximumC: null,
+            precipitationProbabilityPercent: null,
+          },
+          {
+            conditionCode: null,
+            minimumC: null,
+            maximumC: null,
+            precipitationProbabilityPercent: null,
+          },
+        ],
+      },
     });
   });
 
@@ -191,13 +252,20 @@ describe('getWeather', () => {
     expect(result.forecast?.days).toHaveLength(2);
   });
 
-  it('rejects mismatched daily arrays', async () => {
+  it('uses unavailable values when a daily array is shorter than the date list', async () => {
     const daily = { ...payload.daily, weather_code: [3] };
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...payload, daily }) }),
     );
-    await expect(getWeather(city)).rejects.toMatchObject({ kind: 'invalid-response' });
+    const result = await getWeather(city);
+    expect(result.forecast?.days[0].conditionCode).toBe(3);
+    expect(result.forecast?.days.slice(1).map((day) => day.conditionCode)).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 
   it('rejects invalid and out-of-order dates', async () => {

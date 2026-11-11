@@ -17,6 +17,10 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 async function fetchWithTimeout(
   url: string,
   apiMessage: string,
@@ -145,73 +149,85 @@ export async function getWeather(city: City): Promise<WeatherData> {
       'Resposta meteorológica inválida.',
     );
 
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw invalidResponse();
-    const payload = data as Record<string, unknown>;
-    if (
-      typeof payload.current !== 'object' ||
-      payload.current === null ||
-      Array.isArray(payload.current) ||
-      typeof payload.daily !== 'object' ||
-      payload.daily === null ||
-      Array.isArray(payload.daily)
-    ) {
+    if (!isRecord(data)) throw invalidResponse();
+    const payload = data;
+    const current = payload.current;
+    const daily = payload.daily;
+    if ((current != null && !isRecord(current)) || (daily != null && !isRecord(daily))) {
       throw invalidResponse();
     }
 
-    const current = payload.current as Record<string, unknown>;
-    const daily = payload.daily as Record<string, unknown>;
     const numberOrNull = (value: unknown): number | null => {
       if (value === null || value === undefined) return null;
       if (typeof value !== 'number' || !Number.isFinite(value)) throw invalidResponse();
       return value;
     };
-    if (current.time != null && typeof current.time !== 'string') throw invalidResponse();
-    const dates = daily.time;
-    const codes = daily.weather_code;
-    const minimums = daily.temperature_2m_min;
-    const maximums = daily.temperature_2m_max;
-    const probabilities = daily.precipitation_probability_max;
-    if (
-      !Array.isArray(dates) ||
-      !Array.isArray(codes) ||
-      !Array.isArray(minimums) ||
-      !Array.isArray(maximums) ||
-      !Array.isArray(probabilities) ||
-      [codes, minimums, maximums, probabilities].some((values) => values.length !== dates.length)
-    ) {
+    const optionalArray = (section: Record<string, unknown>, key: string): unknown[] => {
+      const value = section[key];
+      if (value === null || value === undefined) return [];
+      if (!Array.isArray(value)) throw invalidResponse();
+      return value;
+    };
+
+    if (isRecord(current) && current.time != null && typeof current.time !== 'string') {
       throw invalidResponse();
     }
 
-    const days = dates.map((date: unknown, index: number) => {
-      if (
-        typeof date !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-        Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ||
-        new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date ||
-        (index > 0 && date <= dates[index - 1])
-      ) {
-        throw invalidResponse();
-      }
-      return {
-        localDate: date,
-        conditionCode: numberOrNull(codes[index]),
-        minimumC: numberOrNull(minimums[index]),
-        maximumC: numberOrNull(maximums[index]),
-        precipitationProbabilityPercent: numberOrNull(probabilities[index]),
-      };
-    });
+    let days: NonNullable<WeatherData['forecast']>['days'] = [];
+    let forecastAvailable = false;
+    if (isRecord(daily) && Array.isArray(daily.time)) {
+      const dates = daily.time;
+      const codes = optionalArray(daily, 'weather_code');
+      const minimums = optionalArray(daily, 'temperature_2m_min');
+      const maximums = optionalArray(daily, 'temperature_2m_max');
+      const probabilities = optionalArray(daily, 'precipitation_probability_max');
+      let previousDate: string | null = null;
+      days = dates.flatMap((date: unknown, index: number) => {
+        if (date == null) return [];
+        if (
+          typeof date !== 'string' ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+          Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ||
+          new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date ||
+          (previousDate !== null && date <= previousDate)
+        ) {
+          throw invalidResponse();
+        }
+        previousDate = date;
+        return {
+          localDate: date,
+          conditionCode: numberOrNull(codes[index]),
+          minimumC: numberOrNull(minimums[index]),
+          maximumC: numberOrNull(maximums[index]),
+          precipitationProbabilityPercent: numberOrNull(probabilities[index]),
+        };
+      });
+      forecastAvailable = true;
+    } else if (isRecord(daily) && daily.time != null) {
+      throw invalidResponse();
+    }
 
     return {
-      city: typeof payload.timezone === 'string' ? { ...city, timezone: payload.timezone } : city,
-      current: {
-        temperatureC: numberOrNull(current.temperature_2m),
-        feelsLikeC: numberOrNull(current.apparent_temperature),
-        humidityPercent: numberOrNull(current.relative_humidity_2m),
-        windSpeedKmh: numberOrNull(current.wind_speed_10m),
-        observedAt: current.time ?? null,
-        conditionCode: numberOrNull(current.weather_code),
+      city: {
+        ...city,
+        timezone:
+          typeof payload.timezone === 'string' && payload.timezone.trim()
+            ? payload.timezone
+            : undefined,
       },
-      forecast: { days: days.slice(0, 5), isIncomplete: days.length < 5 },
+      current: isRecord(current)
+        ? {
+            temperatureC: numberOrNull(current.temperature_2m),
+            feelsLikeC: numberOrNull(current.apparent_temperature),
+            humidityPercent: numberOrNull(current.relative_humidity_2m),
+            windSpeedKmh: numberOrNull(current.wind_speed_10m),
+            observedAt: typeof current.time === 'string' ? current.time : null,
+            conditionCode: numberOrNull(current.weather_code),
+          }
+        : null,
+      forecast: forecastAvailable
+        ? { days: days.slice(0, 5), isIncomplete: days.length < 5 }
+        : null,
     };
   } catch (error) {
     if (error instanceof WeatherServiceError) throw error;
