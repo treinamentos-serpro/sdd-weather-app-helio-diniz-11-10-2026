@@ -29,6 +29,19 @@ describe('SearchBar', () => {
     expect(onSearch).toHaveBeenCalledExactlyOnceWith('São Paulo');
   });
 
+  it('envia caracteres especiais como texto literal', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    const term = '</script><img src=x onerror=alert(1)> & região';
+    render(<SearchBar onSearch={onSearch} />);
+
+    await user.type(screen.getByLabelText('Nome da cidade'), term);
+    await user.keyboard('{Enter}');
+
+    expect(onSearch).toHaveBeenCalledExactlyOnceWith(term);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('valida termos vazios e mantém o foco no campo', async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();

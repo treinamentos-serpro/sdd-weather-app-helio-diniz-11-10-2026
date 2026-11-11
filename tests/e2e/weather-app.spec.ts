@@ -1,5 +1,28 @@
 import { expect, test } from '@playwright/test';
 
+test('não consulta o geocoding para busca vazia ou só com espaços', async ({ page }) => {
+  let searchRequests = 0;
+  await page.route('https://geocoding-api.open-meteo.com/v1/search?*', (route) => {
+    searchRequests += 1;
+    return route.fulfill({ json: { results: [] } });
+  });
+
+  await page.goto('/');
+  const input = page.getByRole('searchbox', { name: 'Nome da cidade' });
+  const submit = page.getByRole('button', { name: 'Buscar', exact: true });
+
+  await submit.click();
+  await expect(page.getByRole('alert')).toHaveText('Informe o nome da cidade.');
+  await expect(input).toBeFocused();
+  expect(searchRequests).toBe(0);
+
+  await input.fill('   ');
+  await submit.click();
+  await expect(page.getByRole('alert')).toHaveText('Informe o nome da cidade.');
+  await expect(input).toBeFocused();
+  expect(searchRequests).toBe(0);
+});
+
 test('recupera a busca após perda de conexão', async ({ page, context }) => {
   let offline = true;
   let searchRequests = 0;
@@ -40,9 +63,9 @@ test('recupera a busca após perda de conexão', async ({ page, context }) => {
   expect(searchRequests).toBe(2);
 });
 
-test('exibe mensagem quando o geocoding retorna um objeto sem results', async ({ page }) => {
+test('exibe mensagem quando o geocoding retorna uma lista vazia', async ({ page }) => {
   await page.route('https://geocoding-api.open-meteo.com/v1/search?*', (route) =>
-    route.fulfill({ json: {} }),
+    route.fulfill({ json: { results: [] } }),
   );
   const forecastRequests: string[] = [];
   await page.route('https://api.open-meteo.com/v1/forecast?*', (route) => {
@@ -58,6 +81,76 @@ test('exibe mensagem quando o geocoding retorna um objeto sem results', async ({
   await expect(page.getByRole('region', { name: 'Clima atual' })).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(forecastRequests).toHaveLength(0);
+});
+
+test('trata caracteres especiais como texto literal no geocoding e na interface', async ({
+  page,
+}) => {
+  const term = '</script><img src=x onerror=alert(1)> & região';
+  let searchedTerm: string | null = null;
+  await page.route('https://geocoding-api.open-meteo.com/v1/search?*', (route) => {
+    searchedTerm = new URL(route.request().url()).searchParams.get('name');
+    return route.fulfill({
+      json: {
+        results: [
+          {
+            id: 1,
+            name: term,
+            latitude: -8,
+            longitude: -35,
+            country: 'Brasil',
+          },
+        ],
+      },
+    });
+  });
+  await page.route('https://api.open-meteo.com/v1/forecast?*', (route) =>
+    route.fulfill({ json: { current: {}, daily: { time: [] } } }),
+  );
+
+  await page.goto('/');
+  await page.getByRole('searchbox', { name: 'Nome da cidade' }).fill(term);
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+  const current = page.getByRole('region', { name: 'Clima atual' });
+  await expect(current.getByRole('heading', { name: term, exact: true })).toBeVisible();
+  expect(searchedTerm).toBe(term);
+  await expect(page.locator('img')).toHaveCount(0);
+});
+
+test('indica previsão incompleta sem inventar dias', async ({ page }) => {
+  await page.route('https://geocoding-api.open-meteo.com/v1/search?*', (route) =>
+    route.fulfill({
+      json: {
+        results: [{ id: 1, name: 'Recife', latitude: -8, longitude: -35 }],
+      },
+    }),
+  );
+  await page.route('https://api.open-meteo.com/v1/forecast?*', (route) =>
+    route.fulfill({
+      json: {
+        timezone: 'America/Recife',
+        current: {},
+        daily: {
+          time: ['2026-11-11', '2026-11-12'],
+          weather_code: [0, 3],
+          temperature_2m_max: [29, 30],
+          temperature_2m_min: [23, 24],
+          precipitation_probability_max: [10, 20],
+        },
+      },
+    }),
+  );
+
+  await page.goto('/');
+  await page.getByRole('searchbox', { name: 'Nome da cidade' }).fill('Recife');
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+  const forecast = page.getByRole('region', { name: 'Previsão dos próximos dias' });
+  await expect(forecast.getByText('Previsão incompleta.')).toBeVisible();
+  await expect(forecast.getByRole('article')).toHaveCount(2);
+  await expect(forecast.getByRole('article').nth(0)).toContainText('11/11/2026');
+  await expect(forecast.getByRole('article').nth(1)).toContainText('12/11/2026');
 });
 
 test('renderiza o clima e a previsão após busca em viewport mobile de 375x812', async ({
