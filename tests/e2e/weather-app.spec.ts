@@ -206,9 +206,9 @@ test('renderiza o clima e a previsão após busca em viewport mobile de 375x812'
   const current = page.getByRole('region', { name: 'Clima atual' });
   await expect(current.getByRole('heading', { name: 'São Paulo', exact: true })).toBeVisible();
   await expect(current.getByText('São Paulo, Brasil', { exact: true })).toBeVisible();
-  await expect(current.getByText('25 °C', { exact: true })).toBeVisible();
+  await expect(current.getByText('25°C', { exact: true })).toBeVisible();
   await expect(current.getByText('Céu limpo', { exact: true })).toBeVisible();
-  await expect(current.getByText('Sensação térmica: 27 °C')).toBeVisible();
+  await expect(current.getByText('Sensação térmica: 27°C')).toBeVisible();
   await expect(current.getByText('68 %', { exact: true })).toBeVisible();
   await expect(current.getByText('10 km/h', { exact: true })).toBeVisible();
   await expect(current.getByText('Observação local: 09:00')).toBeVisible();
@@ -218,8 +218,8 @@ test('renderiza o clima e a previsão após busca em viewport mobile de 375x812'
   for (const day of await forecast.getByRole('article').all()) {
     await expect(day).toBeVisible();
   }
-  await expect(forecast.getByRole('article').first()).toContainText('28 °C');
-  await expect(forecast.getByRole('article').first()).toContainText('18 °C');
+  await expect(forecast.getByRole('article').first()).toContainText('28°C');
+  await expect(forecast.getByRole('article').first()).toContainText('18°C');
 
   const requestCount = forecastRequests.length;
   expect(requestCount).toBeGreaterThan(0);
@@ -228,10 +228,10 @@ test('renderiza o clima e a previsão após busca em viewport mobile de 375x812'
     'aria-pressed',
     'true',
   );
-  await expect(current.getByText('77 °F', { exact: true })).toBeVisible();
-  await expect(current.getByText('Sensação térmica: 81 °F')).toBeVisible();
-  await expect(forecast.getByRole('article').first()).toContainText('82 °F');
-  await expect(forecast.getByRole('article').first()).toContainText('64 °F');
+  await expect(current.getByText('77°F', { exact: true })).toBeVisible();
+  await expect(current.getByText('Sensação térmica: 81°F')).toBeVisible();
+  await expect(forecast.getByRole('article').first()).toContainText('82°F');
+  await expect(forecast.getByRole('article').first()).toContainText('64°F');
   expect(forecastRequests).toHaveLength(requestCount);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
