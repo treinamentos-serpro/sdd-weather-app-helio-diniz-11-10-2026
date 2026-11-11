@@ -6,6 +6,17 @@ import SearchBar from '../../src/components/SearchBar';
 afterEach(cleanup);
 
 describe('SearchBar', () => {
+  it('não envia uma busca com o campo vazio', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<SearchBar onSearch={onSearch} />);
+
+    expect(screen.getByLabelText('Nome da cidade')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Buscar' }));
+    expect(onSearch).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Informe o nome da cidade.');
+  });
+
   it('envia a cidade sem espaços nas extremidades apenas ao submeter', async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();
