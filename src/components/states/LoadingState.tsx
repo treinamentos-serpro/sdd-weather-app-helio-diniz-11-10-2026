@@ -1,12 +1,11 @@
-/** Indicador de carregamento acessível. */
 export default function LoadingState() {
   return (
-    <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-16">
+    <div role="status" className="flex items-center justify-center gap-3 py-8 text-white/80">
       <span
         aria-hidden="true"
-        className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-accent-500"
+        className="h-5 w-5 shrink-0 rounded-full border-2 border-white/20 border-t-accent-400 motion-safe:animate-spin"
       />
-      <p className="text-white/60">Carregando o clima…</p>
+      <p>Carregando...</p>
     </div>
   );
 }

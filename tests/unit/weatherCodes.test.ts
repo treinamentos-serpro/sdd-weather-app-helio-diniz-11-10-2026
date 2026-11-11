@@ -1,15 +1,18 @@
-import { describe, it, expect } from 'vitest';
-import { getWeatherInfo, getWeatherLabel, getWeatherIcon } from '../../src/lib/weatherCodes';
+import { describe, expect, it } from 'vitest';
+import { getWeatherIcon, getWeatherInfo, getWeatherLabel } from '../../src/lib/weatherCodes';
 
-describe('weatherCodes', () => {
-  it('mapeia códigos conhecidos', () => {
-    expect(getWeatherLabel(0)).toBe('Céu limpo');
-    expect(getWeatherIcon(95)).toBe('⛈️');
+describe('weather codes', () => {
+  it('maps a known WMO code to its Portuguese condition and icon', () => {
+    expect(getWeatherInfo(0)).toEqual({ label: 'Céu limpo', icon: '☀️' });
+    expect(getWeatherInfo(61)).toEqual({ label: 'Chuva fraca', icon: '🌦️' });
   });
 
-  it('usa fallback para código desconhecido', () => {
-    const info = getWeatherInfo(123456);
-    expect(info.label).toBe('Condição desconhecida');
-    expect(info.icon).toBeTruthy();
+  it.each([999, null])('uses an explicit fallback for unknown code %s', (code) => {
+    expect(getWeatherInfo(code)).toEqual({
+      label: 'Condição indisponível',
+      icon: '🌡️',
+    });
+    expect(getWeatherLabel(code)).toBe('Condição indisponível');
+    expect(getWeatherIcon(code)).toBe('🌡️');
   });
 });

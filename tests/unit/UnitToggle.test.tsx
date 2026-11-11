@@ -1,51 +1,73 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
 import { useState } from 'react';
-import UnitToggle from '../../src/components/UnitToggle';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import CurrentWeather from '../../src/components/CurrentWeather';
-import type { City, CurrentWeather as CurrentWeatherType, Unit } from '../../src/types/weather';
+import UnitToggle from '../../src/components/UnitToggle';
+import { mockWeatherData } from '../../src/mocks/weather';
+import type { Unit } from '../../src/types/weather';
 
-const city: City = {
-  id: 1,
-  name: 'Seattle',
-  country: 'Estados Unidos',
-  admin1: 'Washington',
-  latitude: 47.6,
-  longitude: -122.33,
-};
+afterEach(cleanup);
 
-const current: CurrentWeatherType = {
-  time: '2026-06-16T12:00',
-  temperature: 0, // 0°C => 32°F (fácil de verificar)
-  humidity: 80,
-  windSpeed: 10,
-  pressure: 1015,
-  precipitation: 0,
-  weatherCode: 3,
-};
+describe('UnitToggle', () => {
+  it('atualiza a temperatura atual ao selecionar Fahrenheit', async () => {
+    function WeatherWithUnitToggle() {
+      const [unit, setUnit] = useState<Unit>('celsius');
+      const current = { ...mockWeatherData.current!, temperatureC: 0 };
 
-function Harness() {
-  const [unit, setUnit] = useState<Unit>('celsius');
-  return (
-    <>
-      <UnitToggle unit={unit} onChange={setUnit} />
-      <CurrentWeather city={city} current={current} unit={unit} />
-    </>
-  );
-}
+      return (
+        <>
+          <UnitToggle unit={unit} onChange={setUnit} />
+          <CurrentWeather city={mockWeatherData.city} current={current} unit={unit} />
+        </>
+      );
+    }
 
-describe('UnitToggle + CurrentWeather', () => {
-  it('converte a temperatura ao alternar a unidade', async () => {
-    render(<Harness />);
-    expect(screen.getByText('0°')).toBeInTheDocument();
+    const user = userEvent.setup();
+    render(<WeatherWithUnitToggle />);
 
-    await userEvent.click(screen.getByRole('button', { name: '°F' }));
-    expect(screen.getByText('32°')).toBeInTheDocument();
+    const weather = screen.getByRole('region', { name: 'Clima atual' });
+    expect(within(weather).getByText('0°C')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Fahrenheit (°F)' }));
+    expect(within(weather).getByText('32°F')).toBeInTheDocument();
   });
 
-  it('expõe os botões com estado pressionado acessível', () => {
-    render(<Harness />);
-    expect(screen.getByRole('button', { name: '°C' })).toHaveAttribute('aria-pressed', 'true');
+  it('indica a unidade ativa e chama onChange ao selecionar outra unidade', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<UnitToggle unit="celsius" onChange={onChange} />);
+
+    expect(screen.getByRole('group', { name: 'Unidade de temperatura' })).toBeInTheDocument();
+    const celsiusButton = screen.getByRole('button', { name: 'Celsius (°C)' });
+    const fahrenheitButton = screen.getByRole('button', { name: 'Fahrenheit (°F)' });
+    expect(celsiusButton).toHaveAttribute('aria-pressed', 'true');
+    expect(fahrenheitButton).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(fahrenheitButton);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('fahrenheit');
+  });
+
+  it('navega e seleciona com as setas, Home e End', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(<UnitToggle unit="celsius" onChange={onChange} />);
+
+    const celsiusButton = screen.getByRole('button', { name: 'Celsius (°C)' });
+    const fahrenheitButton = screen.getByRole('button', { name: 'Fahrenheit (°F)' });
+    celsiusButton.focus();
+
+    await user.keyboard('{ArrowRight}');
+    expect(fahrenheitButton).toHaveFocus();
+    expect(onChange).toHaveBeenLastCalledWith('fahrenheit');
+    rerender(<UnitToggle unit="fahrenheit" onChange={onChange} />);
+
+    await user.keyboard('{Home}');
+    expect(celsiusButton).toHaveFocus();
+    expect(onChange).toHaveBeenLastCalledWith('celsius');
+    rerender(<UnitToggle unit="celsius" onChange={onChange} />);
+
+    await user.keyboard('{End}');
+    expect(fahrenheitButton).toHaveFocus();
+    expect(onChange).toHaveBeenLastCalledWith('fahrenheit');
   });
 });
