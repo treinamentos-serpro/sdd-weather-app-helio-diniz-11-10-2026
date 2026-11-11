@@ -1,5 +1,45 @@
 import { expect, test } from '@playwright/test';
 
+test('recupera a busca após perda de conexão', async ({ page, context }) => {
+  let offline = true;
+  let searchRequests = 0;
+  await page.route('https://geocoding-api.open-meteo.com/v1/search?*', (route) => {
+    searchRequests += 1;
+    if (offline) return route.abort('internetdisconnected');
+    return route.fulfill({
+      json: { results: [{ id: 1, name: 'Recife', latitude: -8, longitude: -35 }] },
+    });
+  });
+  await page.route('https://api.open-meteo.com/v1/forecast?*', (route) =>
+    route.fulfill({
+      json: {
+        current: {},
+        daily: {
+          time: [],
+          weather_code: [],
+          temperature_2m_max: [],
+          temperature_2m_min: [],
+          precipitation_probability_max: [],
+        },
+      },
+    }),
+  );
+
+  await page.goto('/');
+  await context.setOffline(true);
+  await page.getByRole('searchbox', { name: 'Nome da cidade' }).fill('Recife');
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Verifique sua conexão');
+
+  offline = false;
+  await context.setOffline(false);
+  await page.getByRole('button', { name: 'Tentar novamente' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Clima atual' }).getByRole('heading', { name: 'Recife' }),
+  ).toBeVisible();
+  expect(searchRequests).toBe(2);
+});
+
 test('exibe mensagem quando o geocoding retorna um objeto sem results', async ({ page }) => {
   await page.route('https://geocoding-api.open-meteo.com/v1/search?*', (route) =>
     route.fulfill({ json: {} }),

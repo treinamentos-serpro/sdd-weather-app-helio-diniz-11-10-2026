@@ -14,8 +14,16 @@ describe.each([
   it('converts network and AbortError failures to typed errors and clears the timer', async () => {
     vi.useFakeTimers();
     for (const [error, kind, message] of [
-      [new TypeError('network'), 'network', 'Falha de rede.'],
-      [new DOMException('aborted', 'AbortError'), 'timeout', 'A requisição demorou demais.'],
+      [
+        new TypeError('network'),
+        'network',
+        'Não foi possível conectar. Verifique sua conexão e tente novamente.',
+      ],
+      [
+        new DOMException('aborted', 'AbortError'),
+        'timeout',
+        'A consulta demorou mais de 10 segundos. Tente novamente.',
+      ],
     ] as const) {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
       await expect(request()).rejects.toMatchObject({
@@ -65,7 +73,10 @@ describe.each([
         },
       }),
     );
-    await expect(request()).rejects.toMatchObject({ kind: 'network', message: 'Falha de rede.' });
+    await expect(request()).rejects.toMatchObject({
+      kind: 'network',
+      message: 'Não foi possível conectar. Verifique sua conexão e tente novamente.',
+    });
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -85,7 +96,7 @@ describe.each([
     );
     const assertion = expect(request()).rejects.toMatchObject({
       kind: 'timeout',
-      message: 'A requisição demorou demais.',
+      message: 'A consulta demorou mais de 10 segundos. Tente novamente.',
     });
     await vi.advanceTimersByTimeAsync(10_000);
     await assertion;
@@ -239,7 +250,7 @@ describe('getWeather', () => {
     const request = getWeather(city);
     const assertion = expect(request).rejects.toMatchObject({
       kind: 'timeout',
-      message: 'A requisição demorou demais.',
+      message: 'A consulta demorou mais de 10 segundos. Tente novamente.',
       retryable: true,
     });
     await vi.advanceTimersByTimeAsync(10_000);
@@ -334,7 +345,7 @@ describe('searchCities', () => {
     const request = searchCities('cidade');
     const assertion = expect(request).rejects.toMatchObject({
       kind: 'timeout',
-      message: 'A requisição demorou demais.',
+      message: 'A consulta demorou mais de 10 segundos. Tente novamente.',
       retryable: true,
     });
     await vi.advanceTimersByTimeAsync(10_000);

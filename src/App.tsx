@@ -34,7 +34,12 @@ export default function App() {
         )}
         {state.status === 'loading' && <LoadingState />}
         {state.status === 'empty' && <EmptyState title={state.message} />}
-        {state.status === 'error' && <ErrorState message={state.error.message} onRetry={retry} />}
+        {state.status === 'error' && (
+          <ErrorState
+            message={state.error.message}
+            onRetry={state.error.retryable ? retry : undefined}
+          />
+        )}
         {state.status === 'success' && (
           <>
             {state.data.current && (

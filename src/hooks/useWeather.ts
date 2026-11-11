@@ -41,7 +41,11 @@ export function useWeather() {
         error:
           error instanceof WeatherServiceError
             ? error
-            : { kind: 'network', message: 'Não foi possível carregar os dados.', retryable: true },
+            : {
+                kind: 'network',
+                message: 'Não foi possível carregar os dados. Tente novamente.',
+                retryable: true,
+              },
       });
     }
   }

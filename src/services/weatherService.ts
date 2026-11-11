@@ -46,10 +46,18 @@ async function fetchWithTimeout(
     }
   } catch (error) {
     if (controller.signal.aborted || isAbortError(error)) {
-      throw new WeatherServiceError('timeout', 'A requisição demorou demais.', true);
+      throw new WeatherServiceError(
+        'timeout',
+        'A consulta demorou mais de 10 segundos. Tente novamente.',
+        true,
+      );
     }
     if (error instanceof WeatherServiceError) throw error;
-    throw new WeatherServiceError('network', 'Falha de rede.', true);
+    throw new WeatherServiceError(
+      'network',
+      'Não foi possível conectar. Verifique sua conexão e tente novamente.',
+      true,
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -207,6 +215,10 @@ export async function getWeather(city: City): Promise<WeatherData> {
     };
   } catch (error) {
     if (error instanceof WeatherServiceError) throw error;
-    throw new WeatherServiceError('network', 'Falha de rede.', true);
+    throw new WeatherServiceError(
+      'network',
+      'Não foi possível conectar. Verifique sua conexão e tente novamente.',
+      true,
+    );
   }
 }

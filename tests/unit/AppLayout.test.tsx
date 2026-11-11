@@ -99,6 +99,21 @@ describe('App', () => {
     expect(getWeather).toHaveBeenCalledTimes(1);
   });
 
+  it('não oferece nova tentativa para erros não recuperáveis', async () => {
+    vi.mocked(searchCities).mockResolvedValue([mockWeatherData.city]);
+    vi.mocked(getWeather).mockRejectedValue(
+      new WeatherServiceError('invalid-location', 'Localização inválida.', false),
+    );
+    render(<App />);
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Nome da cidade' }), {
+      target: { value: 'São Paulo' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Localização inválida.');
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
+  });
+
   it('ignora respostas de uma busca anterior', async () => {
     let resolveFirst: (cities: City[]) => void = () => {};
     vi.mocked(searchCities)
