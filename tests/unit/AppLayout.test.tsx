@@ -48,7 +48,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Nenhum local encontrado' }),
+      await screen.findByRole('heading', { name: 'Nenhuma cidade encontrada' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Clima atual' })).not.toBeInTheDocument();
     expect(getWeather).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Nenhum local encontrado' }),
+      await screen.findByRole('heading', { name: 'Nenhuma cidade encontrada' }),
     ).toBeInTheDocument();
     expect(searchCities).toHaveBeenLastCalledWith('Recife');
     expect(getWeather).toHaveBeenCalledTimes(1);
@@ -116,10 +116,10 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     fireEvent.change(input, { target: { value: 'Recife' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
-    await screen.findByRole('heading', { name: 'Nenhum local encontrado' });
+    await screen.findByRole('heading', { name: 'Nenhuma cidade encontrada' });
     await act(async () => resolveFirst([mockWeatherData.city]));
 
-    expect(screen.getByRole('heading', { name: 'Nenhum local encontrado' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Nenhuma cidade encontrada' })).toBeInTheDocument();
     expect(getWeather).not.toHaveBeenCalled();
   });
 });

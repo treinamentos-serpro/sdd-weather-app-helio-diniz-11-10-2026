@@ -25,7 +25,7 @@ export function useWeather() {
         const results = await searchCities(query);
         if (currentRequest !== requestId.current) return;
         if (results.length === 0) {
-          setState({ status: 'empty', message: 'Nenhum local encontrado' });
+          setState({ status: 'empty', message: 'Nenhuma cidade encontrada' });
           return;
         }
         selectedCity = results[0];
