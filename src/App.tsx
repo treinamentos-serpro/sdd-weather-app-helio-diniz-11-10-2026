@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -12,6 +12,11 @@ import type { Unit } from './types/weather';
 export default function App() {
   const [unit, setUnit] = useState<Unit>('celsius');
   const { state, search, retry } = useWeather();
+  const resultsRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (state.status === 'success') resultsRef.current?.focus();
+  }, [state.status]);
 
   return (
     <div className="min-h-screen bg-night-900 font-sans text-white">
@@ -26,7 +31,13 @@ export default function App() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <main
+        ref={resultsRef}
+        aria-label="Resultados da busca"
+        aria-busy={state.status === 'loading'}
+        tabIndex={-1}
+        className="mx-auto max-w-6xl px-4 py-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 sm:px-6 lg:px-8"
+      >
         {state.status === 'idle' && (
           <p role="status" className="border-y border-white/10 py-8 text-center text-white/70">
             Busque uma cidade para consultar o clima.

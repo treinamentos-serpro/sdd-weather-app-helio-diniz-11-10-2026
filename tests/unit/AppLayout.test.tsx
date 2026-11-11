@@ -24,14 +24,20 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByText('Busque uma cidade para consultar o clima.')).toBeInTheDocument();
+    const results = screen.getByRole('main', { name: 'Resultados da busca' });
+    expect(results).toHaveAttribute('aria-busy', 'false');
+    expect(results).not.toHaveFocus();
     await user.type(screen.getByRole('searchbox', { name: 'Nome da cidade' }), 'São Paulo');
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
 
     const current = await screen.findByRole('region', { name: 'Clima atual' });
     expect(within(current).getByText('24°C')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Previsão dos próximos dias' })).toBeInTheDocument();
+    expect(results).toHaveFocus();
+    expect(results).toHaveAttribute('aria-busy', 'false');
 
     await user.click(screen.getByRole('button', { name: 'Fahrenheit (°F)' }));
+    expect(screen.getByRole('button', { name: 'Fahrenheit (°F)' })).toHaveFocus();
     expect(within(current).getByText('75°F')).toBeInTheDocument();
     expect(within(current).getByText('Sensação térmica: 77°F')).toBeInTheDocument();
     expect(screen.getByText('79°F')).toBeInTheDocument();
@@ -66,9 +72,14 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
 
     expect(screen.getByText('Carregando...')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
     expect(await screen.findByRole('alert')).toHaveTextContent('Falha de rede.');
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
     fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
     expect(await screen.findByRole('region', { name: 'Clima atual' })).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
     expect(searchCities).toHaveBeenCalledTimes(1);
     expect(getWeather).toHaveBeenCalledTimes(2);
   });

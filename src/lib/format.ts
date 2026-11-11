@@ -1,3 +1,16 @@
+const forecastDayFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'UTC',
+  weekday: 'long',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+const weekdayFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'UTC',
+  weekday: 'long',
+});
+
 export function formatForecastDay(localDate: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) return 'Data indisponível';
 
@@ -6,13 +19,7 @@ export function formatForecastDay(localDate: string): string {
     return 'Data indisponível';
   }
 
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'UTC',
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+  return forecastDayFormatter.format(date);
 }
 
 export function getShortDate(localDate: string, index: number): string {
@@ -26,8 +33,5 @@ export function getShortDate(localDate: string, index: number): string {
   if (index === 0) return 'Hoje';
   if (index === 1) return 'Amanhã';
 
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'UTC',
-    weekday: 'long',
-  }).format(date);
+  return weekdayFormatter.format(date);
 }
